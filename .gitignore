@@ -24,7 +24,6 @@ pnpm-debug.log*
 # ========================
 # Build / Output
 # ========================
-dist/
 build/
 out/
 coverage/
