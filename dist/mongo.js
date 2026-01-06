@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.guildsCollection = void 0;
 exports.connectMongo = connectMongo;
+exports.canUseBot = canUseBot;
 exports.addWallet = addWallet;
 exports.removeWallet = removeWallet;
 exports.getWallets = getWallets;
@@ -56,6 +57,12 @@ async function ensureGuild(guildId) {
 /* =========================
    🔹 WALLETS
 ========================= */
+async function canUseBot(guildId) {
+    const guild = await exports.guildsCollection.findOne({ guildId });
+    if (!guild)
+        return false;
+    return guild.expiresAt > new Date();
+}
 async function addWallet(guildId, wallet) {
     await ensureGuild(guildId);
     await getGuildsCollection().updateOne({ guildId }, { $addToSet: { wallets: wallet } });

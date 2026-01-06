@@ -15,6 +15,7 @@ import { setTimeout } from "timers/promises";
 
 import {
   connectMongo,
+  canUseBot,
   addWallet,
   removeWallet,
   getWallets,
@@ -243,21 +244,33 @@ export async function creditUserAfterPayment(
 export async function addGuildToWhitelist(
   guildId: string,
   plan: Plan,
-  durationDays: number = 30 // by default
+  durationDays: number = 30
 ): Promise<void> {
-  // 🔹 calculus of the expiration date
-  const expiresAt = new Date();
+  const existing = await guildsCollection.findOne({ guildId });
+
+  const now = new Date();
+
+  // 🔹 Start of the duration
+  const startDate =
+    existing && existing.expiresAt > now ? existing.expiresAt : now;
+
+  const expiresAt = new Date(startDate);
   expiresAt.setDate(expiresAt.getDate() + durationDays);
 
-  // 🔹 Update or insert in Mongo
   await guildsCollection.updateOne(
     { guildId },
-    { $set: { guildId, plan, expiresAt } },
+    {
+      $set: {
+        guildId,
+        plan,
+        expiresAt,
+      },
+    },
     { upsert: true }
   );
 
   console.log(
-    `✅ Guild ${guildId} added to whitelist with plan ${plan} until ${expiresAt.toISOString()}`
+    `✅ Guild ${guildId} whitelisted (${plan}) until ${expiresAt.toISOString()}`
   );
 }
 
@@ -320,6 +333,14 @@ client.on("interactionCreate", async (interaction) => {
   }
 
   if (interaction.commandName === "addwallet") {
+    const allowed = await canUseBot(guildId);
+    if (!allowed) {
+      return interaction.reply({
+        content:
+          "❌ This server does not have an active subscription.\n💳 Please subscribe to use this feature.",
+        ephemeral: true,
+      });
+    }
     const wallet = interaction.options.getString("wallet", true).trim();
     if (!isValidSolanaAddress(wallet))
       return interaction.reply({

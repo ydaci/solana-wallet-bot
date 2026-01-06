@@ -6,6 +6,7 @@ export interface GuildDocument {
     walletChannelId?: string;
     plan: "FREE" | "PRO" | "ELITE";
     createdAt: Date;
+    expiresAt: Date;
     credits?: Record<string, number>;
 }
 
@@ -76,6 +77,13 @@ async function ensureGuild(guildId: string) {
 /* =========================
    🔹 WALLETS
 ========================= */
+export async function canUseBot(guildId: string): Promise<boolean> {
+    const guild = await guildsCollection.findOne({ guildId });
+    if (!guild) return false;
+
+    return guild.expiresAt > new Date();
+}
+
 export async function addWallet(guildId: string, wallet: string) {
     await ensureGuild(guildId);
 

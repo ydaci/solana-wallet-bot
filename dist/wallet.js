@@ -183,14 +183,21 @@ async function creditUserAfterPayment(guildId, userId, plan) {
 /* =========================
    🔹 WHITELIST MANAGEMENT
 ========================= */
-async function addGuildToWhitelist(guildId, plan, durationDays = 30 // by default
-) {
-    // 🔹 calculus of the expiration date
-    const expiresAt = new Date();
+async function addGuildToWhitelist(guildId, plan, durationDays = 30) {
+    const existing = await mongo_1.guildsCollection.findOne({ guildId });
+    const now = new Date();
+    // 🔹 Start of the duration
+    const startDate = existing && existing.expiresAt > now ? existing.expiresAt : now;
+    const expiresAt = new Date(startDate);
     expiresAt.setDate(expiresAt.getDate() + durationDays);
-    // 🔹 Update or insert in Mongo
-    await mongo_1.guildsCollection.updateOne({ guildId }, { $set: { guildId, plan, expiresAt } }, { upsert: true });
-    console.log(`✅ Guild ${guildId} added to whitelist with plan ${plan} until ${expiresAt.toISOString()}`);
+    await mongo_1.guildsCollection.updateOne({ guildId }, {
+        $set: {
+            guildId,
+            plan,
+            expiresAt,
+        },
+    }, { upsert: true });
+    console.log(`✅ Guild ${guildId} whitelisted (${plan}) until ${expiresAt.toISOString()}`);
 }
 /* =========================
    🔹 DISCORD COMMANDS
@@ -234,6 +241,13 @@ client.on("interactionCreate", async (interaction) => {
         });
     }
     if (interaction.commandName === "addwallet") {
+        const allowed = await (0, mongo_1.canUseBot)(guildId);
+        if (!allowed) {
+            return interaction.reply({
+                content: "❌ This server does not have an active subscription.\n💳 Please subscribe to use this feature.",
+                ephemeral: true,
+            });
+        }
         const wallet = interaction.options.getString("wallet", true).trim();
         if (!isValidSolanaAddress(wallet))
             return interaction.reply({
