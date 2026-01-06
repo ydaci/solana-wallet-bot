@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.creditUserAfterPayment = creditUserAfterPayment;
 exports.watchGuildWallets = watchGuildWallets;
 require("dotenv/config");
+require("./keepAlive");
 const web3_js_1 = require("@solana/web3.js");
 const discord_js_1 = require("discord.js");
 const promises_1 = require("timers/promises");

@@ -1,4 +1,5 @@
 import "dotenv/config";
+import "./keepAlive";
 import { Connection, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import {
   Client,
