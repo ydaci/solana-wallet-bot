@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.creditUserAfterPayment = creditUserAfterPayment;
+exports.addGuildToWhitelist = addGuildToWhitelist;
 exports.watchGuildWallets = watchGuildWallets;
 require("dotenv/config");
 require("./keepAlive");
@@ -86,6 +87,12 @@ async function watchGuildWallets() {
     for (const guild of client.guilds.cache.values()) {
         const guildId = guild.id;
         lastProcessedSignature[guildId] ?? (lastProcessedSignature[guildId] = {});
+        // ✅ Whitelist check
+        const allowed = await mongo_1.guildsCollection.findOne({ guildId });
+        if (!allowed) {
+            console.log(`Server ${guild.name} (${guildId}) not whitelisted. Skipping...`);
+            continue;
+        }
         const wallets = await (0, mongo_1.getWallets)(guildId);
         if (!wallets.length)
             continue;
@@ -164,18 +171,26 @@ async function watchGuildWallets() {
    🔹 CREDIT USER AFTER PAYMENT
 ========================= */
 async function creditUserAfterPayment(guildId, userId, plan) {
-    // 🔹 Déterminer le nombre max de wallets selon le plan
     const maxWallets = PLAN_LIMITS[plan];
-    // 🔹 Mettre à jour le plan dans Mongo
     await (0, mongo_1.setGuildPlan)(guildId, plan);
-    // 🔹 Récupérer les crédits existants (2 arguments seulement)
     const currentCredits = await (0, mongo_1.getUserCredits)(guildId, userId);
-    // 🔹 Ajouter les crédits manquants si nécessaire
     if (currentCredits < maxWallets) {
         const creditsToAdd = maxWallets - currentCredits;
         await (0, mongo_1.addCreditsToUser)(guildId, userId, creditsToAdd);
     }
     console.log(`✅ User ${userId} in guild ${guildId} credited with plan ${plan} (max wallets: ${maxWallets})`);
+}
+/* =========================
+   🔹 WHITELIST MANAGEMENT
+========================= */
+async function addGuildToWhitelist(guildId, plan, durationDays = 30 // by default
+) {
+    // 🔹 calculus of the expiration date
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + durationDays);
+    // 🔹 Update or insert in Mongo
+    await mongo_1.guildsCollection.updateOne({ guildId }, { $set: { guildId, plan, expiresAt } }, { upsert: true });
+    console.log(`✅ Guild ${guildId} added to whitelist with plan ${plan} until ${expiresAt.toISOString()}`);
 }
 /* =========================
    🔹 DISCORD COMMANDS
@@ -258,6 +273,17 @@ async function main() {
         console.log(`🤖 Logged in as ${client.user.tag}`);
         await registerCommands();
         setInterval(watchGuildWallets, 30000);
+    });
+    // ✅ Event to check whitelist at the invitation
+    client.on("guildCreate", async (guild) => {
+        const allowed = await mongo_1.guildsCollection.findOne({ guildId: guild.id });
+        if (!allowed) {
+            console.log(`Server ${guild.name} (${guild.id}) not whitelisted. Leaving...`);
+            await guild.leave();
+        }
+        else {
+            console.log(`Server ${guild.name} is whitelisted (plan: ${allowed.plan})`);
+        }
     });
 }
 main();

@@ -1,4 +1,3 @@
-// mongo.ts
 import { MongoClient, Collection } from "mongodb";
 
 export interface GuildDocument {
@@ -20,8 +19,9 @@ export interface TransactionDocument {
 
 export type Plan = "FREE" | "PRO" | "ELITE";
 
+
 let client: MongoClient;
-let guildsCollection: Collection<GuildDocument>;
+export let guildsCollection: Collection<GuildDocument>;
 let transactionsCollection: Collection<TransactionDocument>;
 
 export async function connectMongo() {

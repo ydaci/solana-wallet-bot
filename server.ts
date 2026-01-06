@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import { creditUserAfterPayment, watchGuildWallets } from "./wallet";
 import { connectMongo, getUserCredits } from "./mongo";
 import { Client, GatewayIntentBits, SlashCommandBuilder } from "discord.js";
+import { constructWebhookEvent, handleStripeWebhook } from "./stripe";
 
 dotenv.config();
 
@@ -39,7 +40,7 @@ app.post("/create-checkout-session", async (req, res) => {
 });
 
 /* =========================
-   🔹 STRIPE WEBHOOK
+   🔹 WEBHOOK STRIPE 
 ========================= */
 app.post("/webhook", express.raw({ type: "application/json" }), async (req, res) => {
     const sig = req.headers["stripe-signature"]!;
@@ -76,7 +77,28 @@ app.post("/webhook", express.raw({ type: "application/json" }), async (req, res)
 });
 
 /* =========================
-   🔹 COMMANDES DISCORD
+   🔹 WHITELIST
+========================= */
+
+
+app.post("/stripe-webhook", express.raw({ type: "application/json" }), (req, res) => {
+    try {
+        const sigHeader = req.headers["stripe-signature"];
+        if (!sigHeader) return res.status(400).send("Missing Stripe signature");
+
+        const sig = Array.isArray(sigHeader) ? sigHeader[0] : sigHeader;
+        const event = constructWebhookEvent(req.body, sig);
+        handleStripeWebhook(event);
+        res.status(200).send("ok");
+    } catch (err) {
+        console.error("Webhook error:", err);
+        res.status(400).send(`Webhook Error: ${err}`);
+    }
+});
+
+
+/* =========================
+   🔹 DISCORD COMMANDS
 ========================= */
 client.on("interactionCreate", async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
@@ -102,7 +124,7 @@ async function registerCommands() {
 }
 
 /* =========================
-   ▶️ LANCEMENT
+   ▶️ LAUNCH
 ========================= */
 client.once("ready", async () => {
     console.log(`🤖 Logged in as ${client.user!.tag}`);

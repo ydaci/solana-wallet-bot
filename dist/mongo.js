@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.guildsCollection = void 0;
 exports.connectMongo = connectMongo;
 exports.addWallet = addWallet;
 exports.removeWallet = removeWallet;
@@ -11,13 +12,11 @@ exports.setGuildPlan = setGuildPlan;
 exports.addTransaction = addTransaction;
 exports.addCreditsToUser = addCreditsToUser;
 exports.getUserCredits = getUserCredits;
-// mongo.ts
 const mongodb_1 = require("mongodb");
 let client;
-let guildsCollection;
 let transactionsCollection;
 async function connectMongo() {
-    if (guildsCollection && transactionsCollection)
+    if (exports.guildsCollection && transactionsCollection)
         return;
     if (!process.env.MONGO_URI) {
         throw new Error("MONGO_URI missing");
@@ -25,15 +24,15 @@ async function connectMongo() {
     client = new mongodb_1.MongoClient(process.env.MONGO_URI);
     await client.connect();
     const db = client.db("solanaBotDB");
-    guildsCollection = db.collection("guilds");
+    exports.guildsCollection = db.collection("guilds");
     transactionsCollection = db.collection("transactions");
     console.log("✅ MongoDB connected");
 }
 function getGuildsCollection() {
-    if (!guildsCollection) {
+    if (!exports.guildsCollection) {
         throw new Error("Mongo not initialized. Call connectMongo()");
     }
-    return guildsCollection;
+    return exports.guildsCollection;
 }
 function getTransactionsCollection() {
     if (!transactionsCollection) {
