@@ -4,6 +4,13 @@ A Discord bot that tracks Solana wallets in real time and sends transaction aler
 
 ---
 
+## 🌐 Product Page
+
+👉 Learn more about the bot and pricing :
+https://www.notion.so/Solana-Wallet-Monitor-Discord-Bot-2df16adf72e4802abed1d06ca4b350cd 
+
+---
+
 ## 🚀 Features
 
 - Track one or multiple Solana wallets
