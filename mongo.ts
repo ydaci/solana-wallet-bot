@@ -20,6 +20,12 @@ export interface TransactionDocument {
 
 export type Plan = "FREE" | "PRO" | "ELITE";
 
+const PLAN_RULES = {
+    FREE: { maxWallets: 2, cooldown: 10000 },
+    PRO: { maxWallets: 10, cooldown: 3000 },
+    ELITE: { maxWallets: 50, cooldown: 1000 },
+};
+
 
 let client: MongoClient;
 export let guildsCollection: Collection<GuildDocument>;
@@ -68,6 +74,7 @@ async function ensureGuild(guildId: string) {
                 wallets: [],
                 plan: "FREE",
                 createdAt: new Date(),
+                expiresAt: new Date(0),
             },
         },
         { upsert: true }
@@ -81,11 +88,31 @@ export async function canUseBot(guildId: string): Promise<boolean> {
     const guild = await guildsCollection.findOne({ guildId });
     if (!guild) return false;
 
+    if (guild.plan === "FREE") return true;
+
     return guild.expiresAt > new Date();
 }
 
 export async function addWallet(guildId: string, wallet: string) {
     await ensureGuild(guildId);
+
+    const guild = await getGuildsCollection().findOne({ guildId });
+    if (!guild) throw new Error("Guild not found");
+
+    const currentWallets = guild.wallets || [];
+    const plan = guild.plan;
+    const maxWallets = PLAN_RULES[plan].maxWallets;
+
+    if (currentWallets.includes(wallet)) {
+        // Wallet is already present : nothing to do
+        return;
+    }
+
+    if (currentWallets.length >= maxWallets) {
+        throw new Error(
+            `Wallet limit reached for plan ${plan} (${currentWallets.length}/${maxWallets})`
+        );
+    }
 
     await getGuildsCollection().updateOne(
         { guildId },
@@ -95,6 +122,15 @@ export async function addWallet(guildId: string, wallet: string) {
 
 export async function removeWallet(guildId: string, wallet: string) {
     await ensureGuild(guildId);
+
+    const guild = await getGuildsCollection().findOne({ guildId });
+    if (!guild) throw new Error("Guild not found");
+
+    const currentWallets = guild.wallets || [];
+    if (!currentWallets.includes(wallet)) {
+        // Wallet is not present : nothing to do
+        return;
+    }
 
     await getGuildsCollection().updateOne(
         { guildId },
@@ -197,4 +233,25 @@ export async function getUserCredits(
 
     const doc = await getGuildsCollection().findOne({ guildId });
     return doc?.credits?.[userId] || 0;
+}
+
+export async function activateGuild(
+    guildId: string,
+    plan: Plan,
+    durationInDays: number
+) {
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + durationInDays);
+
+    await getGuildsCollection().updateOne(
+        { guildId },
+        {
+            $set: {
+                plan,
+                expiresAt,
+                status: "active"
+            }
+        },
+        { upsert: true }
+    );
 }

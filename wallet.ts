@@ -47,11 +47,7 @@ const connection = new Connection(SOLANA_RPC, "confirmed");
    🔹 PLANS & COOLDOWNS
 ========================= */
 const PLAN_LIMITS: Record<Plan, number> = { FREE: 2, PRO: 10, ELITE: 50 };
-const COMMAND_COOLDOWNS: Record<Plan, number> = {
-  FREE: 10_000,
-  PRO: 3_000,
-  ELITE: 1_000,
-};
+
 const cooldowns = new Map<string, number>();
 
 /* =========================
@@ -374,6 +370,13 @@ client.on("interactionCreate", async (interaction) => {
     });
   }
 });
+
+export async function canAddWallet(guildId: string): Promise<boolean> {
+  const plan = await getGuildPlan(guildId);
+  const wallets = await getWallets(guildId);
+  return wallets.length < PLAN_LIMITS[plan];
+}
+
 
 /* =========================
    ▶️ MAIN

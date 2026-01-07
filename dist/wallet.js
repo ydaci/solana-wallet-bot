@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.creditUserAfterPayment = creditUserAfterPayment;
 exports.addGuildToWhitelist = addGuildToWhitelist;
+exports.canAddWallet = canAddWallet;
 exports.watchGuildWallets = watchGuildWallets;
 require("dotenv/config");
 require("./keepAlive");
@@ -25,11 +26,6 @@ const connection = new web3_js_1.Connection(SOLANA_RPC, "confirmed");
    🔹 PLANS & COOLDOWNS
 ========================= */
 const PLAN_LIMITS = { FREE: 2, PRO: 10, ELITE: 50 };
-const COMMAND_COOLDOWNS = {
-    FREE: 10000,
-    PRO: 3000,
-    ELITE: 1000,
-};
 const cooldowns = new Map();
 /* =========================
    🔹 HELPERS
@@ -277,6 +273,11 @@ client.on("interactionCreate", async (interaction) => {
         });
     }
 });
+async function canAddWallet(guildId) {
+    const plan = await (0, mongo_1.getGuildPlan)(guildId);
+    const wallets = await (0, mongo_1.getWallets)(guildId);
+    return wallets.length < PLAN_LIMITS[plan];
+}
 /* =========================
    ▶️ MAIN
 ========================= */
